@@ -20,31 +20,6 @@ jobs:
     name: Test & SonarCloud Analysis
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: muziloop
-          POSTGRES_PASSWORD: muziloop_pass
-          POSTGRES_DB: muziloop_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,19 +39,9 @@ jobs:
 
       - name: Run unit tests
         working-directory: services/user-service
-        run: npm run test:unit -- --ci --coverage --reporters=default --reporters=jest-junit
+        run: npm run test:unit
         env:
           JEST_JUNIT_OUTPUT_DIR: ./test-results/unit
-          JEST_JUNIT_OUTPUT_NAME: results.xml
-
-      - name: Run integration tests
-        working-directory: services/user-service
-        run: npm run test:integration -- --ci --coverage --reporters=default --reporters=jest-junit
-        env:
-          DATABASE_URL: postgresql://muziloop:muziloop_pass@localhost:5432/muziloop_test
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: test_secret_key
-          JEST_JUNIT_OUTPUT_DIR: ./test-results/integration
           JEST_JUNIT_OUTPUT_NAME: results.xml
 
       - name: Upload coverage report
@@ -96,12 +61,13 @@ jobs:
           retention-days: 7
 
       - name: SonarCloud analysis
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
         with:
           projectBaseDir: services/user-service
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
   # Only runs on PR into master
   create-release-tag:
